@@ -1,0 +1,61 @@
+{
+  "name": "@openverb/motion",
+  "version": "0.1.0",
+  "description": "Renders OpenVerb .ov documents to frames and video \u2014 the drawing half of the GeoStory format",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist/",
+    "src/"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsc",
+    "lint": "tsc --noEmit",
+    "prepublishOnly": "npm run build",
+    "prepare": "npm run build"
+  },
+  "dependencies": {
+    "@openverb/geostory": "^0.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "typescript": "^5.8.3",
+    "mediabunny": "^1.61.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sgthancel/openverb-motion.git"
+  },
+  "homepage": "https://openverb.org",
+  "license": "MIT",
+  "keywords": [
+    "openverb",
+    "geostory",
+    "ov",
+    "motion-graphics",
+    "renderer",
+    "canvas",
+    "animation",
+    "video"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "peerDependencies": {
+    "mediabunny": "^1.61.3"
+  },
+  "peerDependenciesMeta": {
+    "mediabunny": {
+      "optional": true
+    }
+  }
+}
