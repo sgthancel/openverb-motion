@@ -20,6 +20,7 @@
  * canvas. Everything here is exact.
  */
 import { sceneWindows } from "./timeline"
+import { FONT_ROLES, PRESETS, firstFamily } from "./theme"
 import type { GeoStoryDocument } from "@openverb/geostory"
 
 export type Severity = "error" | "warn"
@@ -40,6 +41,32 @@ const ENTER_TYPES = ["fade", "rise", "fall", "left", "right", "typewriter"]
 
 /** Emphasis names the default theme scale carries. */
 const EMPHASIS = ["display", "title", "body", "caption"]
+
+/**
+ * Faces a browser already has, so a stack naming one needs nothing fetched.
+ *
+ * Not a complete list of every font on every machine - that does not exist -
+ * but a list of the ones it is safe to ASSUME. Anything outside it has to be
+ * loaded, and a document that does not say so renders in a substitute while
+ * looking like it worked, which is the one typographic failure that leaves no
+ * trace in the output.
+ */
+const SYSTEM_FAMILIES = new Set(
+  [
+    "system-ui", "ui-sans-serif", "ui-serif", "ui-monospace", "ui-rounded",
+    "sans-serif", "serif", "monospace", "cursive", "fantasy",
+    "-apple-system", "BlinkMacSystemFont", "Segoe UI", "Roboto",
+    "Helvetica", "Helvetica Neue", "Arial", "Arial Black", "Verdana",
+    "Tahoma", "Trebuchet MS", "Impact", "Optima", "Futura", "Gill Sans",
+    "Lucida Grande", "Lucida Sans Unicode", "Candara", "Calibri",
+    "Georgia", "Iowan Old Style", "Times", "Times New Roman", "Palatino",
+    "Palatino Linotype", "Book Antiqua", "Garamond", "Baskerville",
+    "Didot", "Hoefler Text", "Cambria", "Constantia", "Charter",
+    "Courier", "Courier New", "Menlo", "Monaco", "Consolas",
+    "Cascadia Mono", "Cascadia Code", "SF Mono", "Andale Mono",
+    "DejaVu Sans Mono", "Liberation Mono", "Lucida Console",
+  ].map((f) => f.toLowerCase())
+)
 
 type Anno = Record<string, any>
 
@@ -235,6 +262,74 @@ export function lintGeoStory(doc: GeoStoryDocument): Finding[] {
       if (String(a?.kind) === "chart") {
         add("chart-scale", "warn", String(a.id),
           `This document raises its text scale to ${raised}, but a chart labels itself at a fixed 12-13px and ignores theme.scale. Its numbers will read far smaller than everything around them.`)
+      }
+    }
+  }
+
+  // ── the theme ─────────────────────────────────────────────────────────────
+  // A theme block validates whatever it says, so every mistake in one is
+  // silent: an unknown preset renders as midnight, an unknown role is
+  // ignored, and a face that is not loaded is quietly replaced with
+  // something else. None of that is visible in the document.
+  const theme = (doc as Anno).theme
+  if (theme && typeof theme === "object" && !Array.isArray(theme)) {
+    const preset = theme.preset
+    if (preset !== undefined && !(String(preset) in PRESETS)) {
+      add("unknown-theme-preset", "warn", "theme",
+        `Preset "${preset}" does not exist, so the document renders in the default. The presets are ${Object.keys(PRESETS).join(", ")}.`)
+    }
+
+    const declared: string[] = Array.isArray(theme.webfonts)
+      ? theme.webfonts
+          .filter((f: unknown) => typeof f === "string")
+          .map((f: string) => f.trim().toLowerCase())
+      : []
+
+    /** A stack whose first family has to be fetched but was never declared. */
+    const checkStack = (where: string, stack: unknown) => {
+      if (typeof stack !== "string" || !stack.trim()) return
+      const family = firstFamily(stack)
+      if (!family) return
+      if (SYSTEM_FAMILIES.has(family.toLowerCase())) return
+      if (declared.includes(family.toLowerCase())) return
+      add("webfont-not-declared", "warn", where,
+        `"${family}" is not a face every machine has, and theme.webfonts does not ask for it. A canvas cannot wait for a font it was not told about, so the frame renders in a substitute and nothing reports it.`)
+    }
+
+    checkStack("theme.font", theme.font)
+
+    if (theme.fonts && typeof theme.fonts === "object" && !Array.isArray(theme.fonts)) {
+      for (const [role, stack] of Object.entries(theme.fonts as Record<string, unknown>)) {
+        if (!(FONT_ROLES as readonly string[]).includes(role)) {
+          add("unknown-font-role", "warn", `theme.fonts.${role}`,
+            `"${role}" is not a font role, so this typeface is never used. The roles are ${FONT_ROLES.join(", ")} - the same words as emphasis and theme.scale.`)
+          continue
+        }
+        checkStack(`theme.fonts.${role}`, stack)
+      }
+    }
+
+    if (Array.isArray(theme.webfonts)) {
+      // A declared face that nothing names costs a network request and a
+      // render delay for a typeface that never appears.
+      const used = new Set<string>()
+      const collect = (stack: unknown) => {
+        if (typeof stack !== "string") return
+        for (const part of stack.split(",")) {
+          const name = part.trim().replace(/^['"]|['"]$/g, "")
+          if (name) used.add(name.toLowerCase())
+        }
+      }
+      collect(theme.font)
+      if (theme.fonts && typeof theme.fonts === "object") {
+        for (const stack of Object.values(theme.fonts as Record<string, unknown>)) collect(stack)
+      }
+      for (const family of theme.webfonts) {
+        if (typeof family !== "string" || !family.trim()) continue
+        if (!used.has(family.trim().toLowerCase())) {
+          add("webfont-unused", "warn", "theme.webfonts",
+            `"${family}" is loaded but no font role names it, so it is fetched and never drawn.`)
+        }
       }
     }
   }

@@ -1,6 +1,6 @@
 {
   "name": "@openverb/motion",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Renders OpenVerb .ov documents to frames and video \u2014 the drawing half of the GeoStory format",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

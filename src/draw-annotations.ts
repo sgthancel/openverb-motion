@@ -23,7 +23,7 @@ import {
   smoothingFor,
 } from "./space"
 import { entranceAt, revealText } from "./entrance"
-import { DEFAULT_THEME, type Theme } from "./theme"
+import { DEFAULT_THEME, fontFor, type Theme } from "./theme"
 import { chartOf, drawChart } from "./draw-chart"
 
 /** Style, with the format's optional fields resolved. */
@@ -132,6 +132,19 @@ export function emphasisOf(
   return theme.scale[named] ?? theme.scale.body ?? 1
 }
 
+/**
+ * Which typeface a label takes.
+ *
+ * The same word as its size, so `emphasis: display` picks both the display
+ * scale and the display font, and a theme that pairs a serif headline with a
+ * sans body needs nothing said on the annotation at all.
+ */
+export function roleOf(annotation: { emphasis?: unknown }): string {
+  return typeof annotation.emphasis === "string" && annotation.emphasis
+    ? annotation.emphasis
+    : "body"
+}
+
 /** Text with a dark halo, which stays readable over any basemap. */
 function label(
   context: CanvasRenderingContext2D,
@@ -141,11 +154,12 @@ function label(
   scale: number,
   align: CanvasTextAlign = "center",
   weight = 1,
-  theme: Theme = DEFAULT_THEME
+  theme: Theme = DEFAULT_THEME,
+  role = "body"
 ): void {
   const size = Math.round(15 * scale * weight)
   context.save()
-  context.font = `600 ${size}px ${theme.font}`
+  context.font = `600 ${size}px ${fontFor(theme, role)}`
   context.textAlign = align
   context.textBaseline = "middle"
 
@@ -174,14 +188,21 @@ function drawLeader(
   paint: Paint,
   scale: number,
   frame: { width: number; height: number },
-  text: string
+  text: string,
+  theme: Theme = DEFAULT_THEME,
+  weight = 1,
+  role = "body"
 ): { x: number; y: number; align: CanvasTextAlign } {
   const run = Math.min(frame.width, frame.height) * leader.length
   const gap = 8 * scale
   const pad = 12 * scale
 
   context.save()
-  context.font = `600 ${Math.round(15 * scale)}px system-ui, -apple-system, "Segoe UI", sans-serif`
+  // In the face and at the size the label will really be drawn, because
+  // this width is what decides whether the callout flips away from an edge.
+  // Measured in the default sans at body size, a Georgia display label came
+  // out a third narrower than it renders and stayed pointing off the frame.
+  context.font = `600 ${Math.round(15 * scale * weight)}px ${fontFor(theme, role)}`
   const textWidth = context.measureText(text).width
   context.restore()
 
@@ -552,6 +573,7 @@ export function drawAnnotationLabels(
     if (!anchor || !fallback) continue
 
     const weight = emphasisOf(annotation as { emphasis?: unknown }, theme)
+    const role = roleOf(annotation as { emphasis?: unknown })
 
     context.save()
     context.globalAlpha = alpha
@@ -562,10 +584,10 @@ export function drawAnnotationLabels(
         x: anchor.x + leader.dx * edge,
         y: anchor.y + leader.dy * edge,
       }
-      const at = drawLeader(context, leader, from, paint, scale, frame, text)
-      label(context, text, at.x, at.y, scale, at.align, weight, theme)
+      const at = drawLeader(context, leader, from, paint, scale, frame, text, theme, weight, role)
+      label(context, text, at.x, at.y, scale, at.align, weight, theme, role)
     } else {
-      label(context, text, fallback.x, fallback.y, scale, fallback.align, weight, theme)
+      label(context, text, fallback.x, fallback.y, scale, fallback.align, weight, theme, role)
     }
 
     context.restore()

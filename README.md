@@ -102,11 +102,50 @@ that preserves unknown fields will otherwise keep in silence.
 
 This half is pure, so it runs in CI without a display.
 
+## Themes and fonts
+
+A document declares `theme:` at the root. It can name a preset, override
+single values, or both; anything it does not mention keeps the default, so a
+document with no theme block renders as it always did.
+
+```yaml
+theme:
+  preset: rose
+  fonts:
+    display: '"Playfair Display", Georgia, serif'
+    body: 'Inter, system-ui, sans-serif'
+  webfonts: ["Playfair Display", "Inter"]
+  scale:
+    display: 3.2
+```
+
+Seven presets, chosen by subject rather than by surface: `midnight`, `paper`,
+`editorial`, `rose`, `forest`, `arctic`, `mono`. `PRESET_NOTES` has a line
+each, for a host building a picker.
+
+`fonts` names a stack per role, and the roles are the same four words `scale`
+and `emphasis` use — `display`, `title`, `body`, `caption` — so an annotation
+marked `emphasis: display` takes the display size and the display face without
+being told twice. A role a theme leaves out falls back to `font`.
+
+**A canvas cannot wait for a typeface it was not told about.** Ask for a face
+the browser has not loaded and the frame is drawn in a substitute, with no
+error and nothing wrong with the file. Every preset stack is therefore a
+system face. A document that wants Caveat or Playfair Display lists it in
+`webfonts`; `webfontsOf(doc)` is what a host reads to know what to fetch, and
+`missingFonts(theme)` is how it checks afterwards that the fetch worked.
+Naming a non-system face without declaring it is a lint finding rather than a
+surprise in a finished render.
+
+Loading is the host's business, because choosing a font provider is not a
+rendering decision.
+
 ## What needs a browser
 
 | Module | Needs |
 | --- | --- |
 | `timeline`, `space`, `flow`, `entrance`, `theme`, `lint` | nothing — pure |
+| `missingFonts` | `document.fonts`; returns `[]` without one |
 | `draw-*`, `chrome` | a `CanvasRenderingContext2D` |
 | `raster` | a canvas, and `Image` for basemap tiles |
 | `export-video` | WebCodecs, plus the optional `mediabunny` peer |

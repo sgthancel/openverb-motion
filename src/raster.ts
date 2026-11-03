@@ -16,7 +16,7 @@
  */
 import type { GeoStoryDocument, GeoStoryAnnotation } from "@openverb/geostory"
 import { withSpaces, hasCanvasAnnotations, isCanvas } from "./space"
-import { themeOf, type Theme } from "./theme"
+import { DEFAULT_THEME, fontFor, themeOf, type Theme } from "./theme"
 import {
   basemapAt,
   cameraTrack,
@@ -29,6 +29,7 @@ import {
   drawAnnotations,
   drawAnnotationLabels,
   emphasisOf,
+  roleOf,
 } from "./draw-annotations"
 import { annotationWindow } from "./flow"
 import {
@@ -581,7 +582,8 @@ function drawFurniture(
   context: CanvasRenderingContext2D,
   band: Rect,
   camera: RasterCamera,
-  scale: number
+  scale: number,
+  theme: Theme = DEFAULT_THEME
 ): void {
   const metresPerPixel =
     (156543.03392 * Math.cos((camera.center[0] * Math.PI) / 180)) /
@@ -607,7 +609,7 @@ function drawFurniture(
 
   context.save()
   context.lineCap = "butt"
-  context.font = `600 ${Math.round(12 * scale)}px system-ui, -apple-system, sans-serif`
+  context.font = `600 ${Math.round(12 * scale)}px ${fontFor(theme, "caption")}`
   context.textBaseline = "alphabetic"
 
   const tick = Math.round(6 * scale)
@@ -694,7 +696,8 @@ function drawCaption(
   width: number,
   height: number,
   scale: number,
-  alpha: number
+  alpha: number,
+  theme: Theme = DEFAULT_THEME
 ): void {
   if (alpha <= 0.01) return
 
@@ -703,7 +706,7 @@ function drawCaption(
   const lineHeight = Math.round(fontSize * 1.35)
 
   context.save()
-  context.font = `500 ${fontSize}px system-ui, -apple-system, "Segoe UI", sans-serif`
+  context.font = `500 ${fontSize}px ${fontFor(theme, "caption")}`
   context.textBaseline = "top"
 
   const lines = wrap(context, text, width * 0.78)
@@ -718,7 +721,7 @@ function drawCaption(
 
   // The same slab the preview puts behind a caption: white text straight onto
   // a basemap is unreadable the moment the map goes pale.
-  context.fillStyle = "rgba(10, 14, 20, 0.82)"
+  context.fillStyle = theme.slab
   const radius = Math.round(8 * scale)
   context.beginPath()
   context.moveTo(boxX + radius, boxY)
@@ -729,7 +732,7 @@ function drawCaption(
   context.closePath()
   context.fill()
 
-  context.fillStyle = "#f3f4f6"
+  context.fillStyle = theme.slabInk
   context.textAlign = "center"
   lines.forEach((line, i) => {
     context.fillText(line, width / 2, boxY + padding + i * lineHeight)
@@ -835,7 +838,7 @@ function fitLabels(
     const weight = emphasisOf(annotation as { emphasis?: unknown }, theme)
     const size = Math.round(15 * scale * weight)
     context.save()
-    context.font = `600 ${size}px ${theme.font}`
+    context.font = `600 ${size}px ${fontFor(theme, roleOf(annotation as { emphasis?: unknown }))}`
     const half = context.measureText(String(annotation.label)).width / 2
     context.restore()
 
@@ -1041,7 +1044,7 @@ export async function renderFrame({
     // A scale bar measures the ground and the arrow points north on it.
     // With no basemap drawn there is no ground, so both are furniture
     // describing something that is not on the frame.
-    if (camera && source) drawFurniture(context, band, camera, scale)
+    if (camera && source) drawFurniture(context, band, camera, scale, theme)
 
     await drawMedia(context, doc, seconds, band, scale, baseUrl)
 
@@ -1064,7 +1067,8 @@ export async function renderFrame({
           band.width,
           band.height,
           scale,
-          Math.max(0, Math.min(1, into, outOf))
+          Math.max(0, Math.min(1, into, outOf)),
+          theme
         )
         context.restore()
       }
@@ -1090,7 +1094,8 @@ export async function renderFrame({
         width,
         height,
         scale,
-        Math.max(0, Math.min(1, into, outOf))
+        Math.max(0, Math.min(1, into, outOf)),
+        theme
       )
     }
   }

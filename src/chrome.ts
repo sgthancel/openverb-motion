@@ -12,7 +12,7 @@
  * and no renderer has ever put them on screen.
  */
 import type { GeoStoryDocument, GeoStoryScene } from "@openverb/geostory"
-import { DEFAULT_THEME, type Theme } from "./theme"
+import { DEFAULT_THEME, fontFor, type Theme } from "./theme"
 import {
   attributionFor,
   isMapless as mapless,
@@ -198,7 +198,7 @@ export function drawChrome(
 
   if (info.kicker) {
     const size = Math.round(13 * scale)
-    context.font = `600 ${size}px ${theme.font}`
+    context.font = `600 ${size}px ${fontFor(theme, "title")}`
     context.fillStyle = theme.kicker
     tracked(context, info.kicker.toUpperCase(), margin, height * 0.032, size * 0.18)
   }
@@ -209,7 +209,7 @@ export function drawChrome(
   let dekWidth = 0
   if (info.dek) {
     const size = Math.round(19 * scale)
-    context.font = `400 ${size}px ${theme.font}`
+    context.font = `400 ${size}px ${fontFor(theme, "body")}`
     const text = wrap(context, info.dek, available * 0.32, 1)[0] ?? ""
     dekWidth = context.measureText(text).width
     context.fillStyle = theme.dek
@@ -228,11 +228,11 @@ export function drawChrome(
     let size = Math.round(38 * scale)
     const floor = Math.round(21 * scale)
     for (; size > floor; size -= 1) {
-      context.font = `700 ${size}px ${theme.font}`
+      context.font = `700 ${size}px ${fontFor(theme, "title")}`
       if (context.measureText(text).width <= room) break
     }
 
-    context.font = `700 ${size}px ${theme.font}`
+    context.font = `700 ${size}px ${fontFor(theme, "title")}`
     context.fillStyle = theme.title
     context.fillText(text, margin, height * 0.082)
   }
@@ -243,7 +243,7 @@ export function drawChrome(
 
   if (info.legend.length) {
     const size = Math.round(14 * scale)
-    context.font = `600 ${size}px ${theme.font}`
+    context.font = `600 ${size}px ${fontFor(theme, "caption")}`
     let cursor = margin
 
     for (const entry of info.legend.slice(0, 3)) {
@@ -262,7 +262,7 @@ export function drawChrome(
 
   if (info.note) {
     const size = Math.round(12 * scale)
-    context.font = `400 ${size}px ${theme.font}`
+    context.font = `400 ${size}px ${fontFor(theme, "caption")}`
     context.fillStyle = theme.note
     const lines = wrap(context, info.note, width - margin * 2, 1)
     context.fillText(lines[0] ?? "", margin, legendY + Math.round(size * 1.7))
@@ -271,7 +271,7 @@ export function drawChrome(
   // The counter, large and nearly transparent, the way a page number is.
   {
     const size = Math.round(28 * scale)
-    context.font = `300 ${size}px ${theme.font}`
+    context.font = `300 ${size}px ${fontFor(theme, "title")}`
     context.fillStyle = theme.counter
     context.textAlign = "right"
     const number = String(info.index).padStart(2, "0")

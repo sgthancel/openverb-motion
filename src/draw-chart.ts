@@ -17,7 +17,7 @@
  * solid bar at half height reads as data arriving.
  */
 import { canvasBox, isCanvas } from "./space"
-import type { Theme } from "./theme"
+import { fontFor, type Theme } from "./theme"
 
 export interface ChartPoint {
   label: string
@@ -153,14 +153,14 @@ export function drawChart(
   if (words > 0.01) {
     context.globalAlpha = Math.min(1, words)
 
-    context.font = `600 ${Math.round(13 * scale)}px ${theme.font}`
+    context.font = `600 ${Math.round(13 * scale)}px ${fontFor(theme, "body")}`
     context.fillStyle = theme.title
     context.textBaseline = "bottom"
     points.forEach((p, i) => {
       context.fillText(short(p.value), centres[i], tops[i] - 6 * scale)
     })
 
-    context.font = `400 ${Math.round(12 * scale)}px ${theme.font}`
+    context.font = `400 ${Math.round(12 * scale)}px ${fontFor(theme, "caption")}`
     context.fillStyle = theme.legend
     context.textBaseline = "top"
     points.forEach((p, i) => {
