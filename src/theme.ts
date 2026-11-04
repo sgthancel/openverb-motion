@@ -431,3 +431,27 @@ export function missingFonts(theme: Theme): string[] {
     })
   })
 }
+
+/**
+ * Label ink that follows the basemap under it.
+ *
+ * A theme is document-level and a basemap is per scene, and the two disagree
+ * the moment a story flies from a dark canvas down to a street map: pale
+ * label ink with a dark halo is exactly right over the first and invisible
+ * over the second. Nothing about the document is wrong when that happens, so
+ * it is resolved here rather than asked of the author.
+ *
+ * A basemap says which it is with `light: true`. Only the ink and the halo
+ * swap — colours an author chose for shapes are theirs, and a theme that
+ * flipped its whole palette under them would be a different kind of surprise.
+ *
+ * This has to be shared rather than done by a host, because a preview that
+ * applies it and an exporter that does not produce different films from one
+ * document — which is exactly what happened: the exported video rendered
+ * light labels onto the light street map and lost them.
+ */
+export function themeForBasemap(theme: Theme, basemap: unknown): Theme {
+  const light = Boolean((basemap as { light?: unknown } | null)?.light)
+  if (!light) return theme
+  return { ...theme, label: "#0C1116", halo: "rgba(255, 255, 255, 0.94)" }
+}

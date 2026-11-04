@@ -47,6 +47,7 @@ export * from "./theme"
 // Needs a 2D context. Given one, these are what put a document on it.
 export * from "./draw-annotations"
 export * from "./draw-flow"
+export * from "./draw-vehicle"
 export * from "./draw-chart"
 export * from "./chrome"
 

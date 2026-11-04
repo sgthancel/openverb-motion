@@ -16,7 +16,7 @@
  */
 import type { GeoStoryDocument, GeoStoryAnnotation } from "@openverb/geostory"
 import { withSpaces, hasCanvasAnnotations, isCanvas } from "./space"
-import { DEFAULT_THEME, fontFor, themeOf, type Theme } from "./theme"
+import { DEFAULT_THEME, fontFor, themeOf, type Theme, themeForBasemap } from "./theme"
 import {
   basemapAt,
   cameraTrack,
@@ -25,6 +25,7 @@ import {
   type GeoCamera,
 } from "./timeline"
 import { drawFlow, type FlowScene } from "./draw-flow"
+import { drawVehicles } from "./draw-vehicle"
 import {
   drawAnnotations,
   drawAnnotationLabels,
@@ -983,6 +984,11 @@ export async function renderFrame({
 
   const scale = Math.max(0.5, height / 1080)
 
+  // Label ink follows the basemap, by the same rule the preview uses. Both
+  // call the one helper, because a preview that swaps and an exporter that
+  // does not make two different films out of one document.
+  const inkTheme = themeForBasemap(theme, basemap)
+
   // Spaces and `at` shorthand resolved once, so the drawing code reads one
   // field and never has to look a default up on the document.
   const annotations = withSpaces(doc)
@@ -1015,10 +1021,13 @@ export async function renderFrame({
       : null
 
     // Static first, so a moving line is never drawn underneath a plain one.
-    drawAnnotations(context, annotations, windows, seconds, place, scale, framed?.zoom ?? 0, box)
+    drawAnnotations(context, annotations, windows, seconds, place, scale, framed?.zoom ?? 0, box, inkTheme)
     drawFlow(context, annotations, windows, seconds, place, scale, box)
-    // Words last, so nothing is drawn over them.
-    drawAnnotationLabels(context, annotations, windows, seconds, place, scale, framed?.zoom ?? 0, box, theme)
+    // Words next, so nothing static is drawn over them.
+    drawAnnotationLabels(context, annotations, windows, seconds, place, scale, framed?.zoom ?? 0, box, inkTheme)
+    // A vehicle last of all: it has to sit on top of every line including
+    // its own track, and a place name under it is the lesser loss.
+    drawVehicles(context, annotations, windows, seconds, place, scale, box)
   }
 
   context.restore()
