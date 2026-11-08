@@ -396,10 +396,13 @@ async function drawMedia(
     // asset must degrade rather than leave a hole.
     if (!image) continue
 
-    // The same half-second fade as captions and annotations.
+    // The same half-second fade as captions and annotations, times whatever
+    // strength the document asked for. The fade is the arrival; the opacity
+    // is how solid the picture is once it has arrived, and multiplying keeps
+    // a 55% wash washing in rather than snapping to 55%.
     const into = (seconds - visual.startTime) / 0.5
     const outOf = (visual.endTime - seconds) / 0.5
-    const alpha = Math.max(0, Math.min(1, into, outOf))
+    const alpha = Math.max(0, Math.min(1, into, outOf)) * visual.opacity
     if (alpha <= 0.01) continue
 
     if (visual.fit === "cover" || visual.fit === "contain") {

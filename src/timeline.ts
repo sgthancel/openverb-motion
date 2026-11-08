@@ -567,6 +567,21 @@ export function visualsFrom(doc: GeoStoryDocument, baseUrl?: string) {
       // the same reason the camera drifts through a held shot.
       const drift = (item as { drift?: unknown }).drift !== false
 
+      // `media.opacity` is a validated 0..1 field in the schema and this
+      // line used to read `opacity: 1`, so every document that asked for a
+      // picture to sit UNDER the map at half strength got one painted over
+      // it at full strength instead. A `cover` image is the whole frame, so
+      // the cost was the entire map: the Pantanal film set 0.55 to 0.62 on
+      // four covering images and lost its basemap, its outline and its
+      // labels in four scenes out of ten, with nothing reported anywhere.
+      // Carried rather than clamped away, because a document that never
+      // mentions opacity still resolves to 1 and is unaffected.
+      const asked_opacity = (item as { opacity?: unknown }).opacity
+      const opacity =
+        typeof asked_opacity === "number" && Number.isFinite(asked_opacity)
+          ? Math.max(0, Math.min(1, asked_opacity))
+          : 1
+
       return {
         id: item.id,
         imageUrl: resolveAsset(item.src, baseUrl),
@@ -575,7 +590,7 @@ export function visualsFrom(doc: GeoStoryDocument, baseUrl?: string) {
         position: { x: place.x, y: place.y, width: place.width },
         fit,
         drift,
-        opacity: 1,
+        opacity,
         transition: "fade" as const,
       }
     })
