@@ -156,7 +156,7 @@ function label(
   weight = 1,
   theme: Theme = DEFAULT_THEME,
   role = "body"
-): void {
+): { x: number; y: number; width: number; height: number } {
   const size = Math.round(15 * scale * weight)
   context.save()
   context.font = `600 ${size}px ${fontFor(theme, role)}`
@@ -172,7 +172,62 @@ function label(
 
   context.fillStyle = theme.label
   context.fillText(text, x, y)
+
+  // Measured in the font that was just used, inside the same save/restore,
+  // so the box describes the words on screen rather than an estimate of them.
+  const width = context.measureText(text).width
   context.restore()
+
+  // Baseline is middle and the align decides which side of x the text sits.
+  const left = align === "center" ? x - width / 2 : align === "right" ? x - width : x
+  return { x: left, y: y - size / 2, width, height: size }
+}
+
+/**
+ * Where a label actually ended up, so a caller can reach it.
+ *
+ * The label pass used to return `void`. It computed an anchor, a leader with
+ * its bend, a text position and a measured width — everything needed to know
+ * what sits under a cursor — and then threw all of it away at the edge of the
+ * canvas. Any editor built on top had to recompute the same geometry from the
+ * outside and hope it still matched: the 0.62 bend, the 0.38 jog, the length
+ * clamp, the font metrics, and the flip away from the frame edge. When those
+ * drifted the labels would silently stop being grabbable, and nothing would
+ * say so.
+ *
+ * So the pass reports what it drew. Returning a value where `void` was
+ * returned breaks no existing caller, and it is the difference between an
+ * editor that knows where the words are and one that guesses.
+ *
+ * All coordinates are canvas pixels in the frame that was passed in.
+ */
+export interface PlacedLabel {
+  id: string
+  /** As drawn, which during a typewriter reveal is shorter than the label. */
+  text: string
+  /** The thing being named: a monument, or a point along a line. */
+  anchor: { x: number; y: number }
+  /** The drawn text's bounding box. */
+  box: { x: number; y: number; width: number; height: number }
+  /**
+   * The leader as DRAWN, after the flip away from the frame edge — so a
+   * caller that wants to move it is reading the line on screen rather than
+   * the direction the document asked for.
+   */
+  leader?: {
+    from: { x: number; y: number }
+    knee: { x: number; y: number }
+    end: { x: number; y: number }
+    /** The unit vector actually used, which may be flipped from the document's. */
+    dx: number
+    dy: number
+    length: number
+    elbow: boolean
+    /** True when the frame edge turned it round. */
+    flipped: boolean
+  }
+  /** 0 to 1. A label mid-fade is drawn but should not be grabbable. */
+  alpha: number
 }
 
 /**
@@ -192,7 +247,12 @@ function drawLeader(
   theme: Theme = DEFAULT_THEME,
   weight = 1,
   role = "body"
-): { x: number; y: number; align: CanvasTextAlign } {
+): {
+  x: number
+  y: number
+  align: CanvasTextAlign
+  line: { from: Point; knee: Point; end: Point; dx: number; dy: number; flipped: boolean }
+} {
   const run = Math.min(frame.width, frame.height) * leader.length
   const gap = 8 * scale
   const pad = 12 * scale
@@ -275,13 +335,24 @@ function drawLeader(
 
   context.restore()
 
+  const line = {
+    from,
+    knee,
+    end,
+    dx,
+    dy,
+    // The document asked for leader.dx/dy; these are what the frame allowed.
+    flipped: dx !== leader.dx || dy !== leader.dy,
+  }
+
   if (dx === 0) {
-    return { x: end.x, y: end.y + (dy < 0 ? -gap : gap), align: "center" }
+    return { x: end.x, y: end.y + (dy < 0 ? -gap : gap), align: "center", line }
   }
   return {
     x: end.x + (dx > 0 ? gap : -gap),
     y: end.y,
     align: dx > 0 ? "left" : "right",
+    line,
   }
 }
 
@@ -496,8 +567,9 @@ export function drawAnnotationLabels(
   zoom: number,
   frame: { width: number; height: number },
   theme: Theme = DEFAULT_THEME
-): void {
+): PlacedLabel[] {
   const onCanvas = canvasProjector(frame)
+  const placed: PlacedLabel[] = []
 
   for (const annotation of annotations) {
     if (!annotation.label) continue
@@ -585,11 +657,38 @@ export function drawAnnotationLabels(
         y: anchor.y + leader.dy * edge,
       }
       const at = drawLeader(context, leader, from, paint, scale, frame, text, theme, weight, role)
-      label(context, text, at.x, at.y, scale, at.align, weight, theme, role)
+      const box = label(context, text, at.x, at.y, scale, at.align, weight, theme, role)
+      placed.push({
+        id: String(annotation.id ?? ""),
+        text,
+        anchor: { x: anchor.x, y: anchor.y },
+        box,
+        leader: { ...at.line, length: leader.length, elbow: leader.elbow },
+        alpha,
+      })
     } else {
-      label(context, text, fallback.x, fallback.y, scale, fallback.align, weight, theme, role)
+      const box = label(
+        context,
+        text,
+        fallback.x,
+        fallback.y,
+        scale,
+        fallback.align,
+        weight,
+        theme,
+        role
+      )
+      placed.push({
+        id: String(annotation.id ?? ""),
+        text,
+        anchor: { x: anchor.x, y: anchor.y },
+        box,
+        alpha,
+      })
     }
 
     context.restore()
   }
+
+  return placed
 }

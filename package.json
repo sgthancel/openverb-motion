@@ -1,7 +1,7 @@
 {
   "name": "@openverb/motion",
-  "version": "0.3.0",
-  "description": "Renders OpenVerb .ov documents to frames and video — the drawing half of the GeoStory format",
+  "version": "0.4.0",
+  "description": "Renders OpenVerb .ov documents to frames and video \u2014 the drawing half of the GeoStory format",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
@@ -20,6 +20,7 @@
   "scripts": {
     "build": "tsc",
     "lint": "tsc --noEmit",
+    "check:labels": "node --experimental-strip-types scripts/check-placed-labels.mts",
     "prepublishOnly": "npm run build",
     "prepare": "npm run build"
   },
